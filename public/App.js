@@ -142,7 +142,7 @@ async function toggleTask(id) {
   try {
     const response = await fetch(`http://localhost:3000/tasks/${id}`, {
       method: 'PUT',
-      headers: { 'Authorization': `Bennett ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     if (!response.ok) throw new Error('Failed to toggle task');
     loadTasks();
