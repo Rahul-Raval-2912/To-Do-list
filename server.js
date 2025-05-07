@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
@@ -14,26 +14,16 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
-// User Schema
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
+// MySQL Connection Pool
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
-const User = mongoose.model('User', userSchema);
-
-// Task Schema
-const taskSchema = new mongoose.Schema({
-  text: { type: String, required: true },
-  urgent: { type: Boolean, default: false },
-  completed: { type: Boolean, default: false },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
-});
-const Task = mongoose.model('Task', taskSchema);
 
 // Nodemailer Transporter
 const nm = require('nodemailer');
@@ -48,33 +38,39 @@ const transporter = nm.createTransport({
 
 // Reminder System: Send email for urgent tasks every 30 seconds
 setInterval(async () => {
-  const urgentTasks = await Task.find({ urgent: true, completed: false }).populate('userId');
-  for (const task of urgentTasks) {
-    const mailoptions = {
-      from: process.env.EMAIL_USER,
-      to: task.userId.email,
-      subject: `Reminder: Urgent Task "${task.text}"`,
-      text: `This is a reminder for your urgent task: "${task.text}". Please complete it soon!`
-    };
-    try {
-      const info = await new Promise((resolve, reject) => {
-        transporter.sendMail(mailoptions, (error, info) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(info);
-          }
+  try {
+    const [tasks] = await pool.query(`
+      SELECT t.text, u.email
+      FROM tasks t
+      JOIN users u ON t.userId = u.id
+      WHERE t.urgent = TRUE AND t.completed = FALSE
+    `);
+    for (const task of tasks) {
+      const mailoptions = {
+        from: process.env.EMAIL_USER,
+        to: task.email,
+        subject: `Reminder: Urgent Task "${task.text}"`,
+        text: `This is a reminder for your urgent task: "${task.text}". Please complete it soon!`
+      };
+      try {
+        const info = await new Promise((resolve, reject) => {
+          transporter.sendMail(mailoptions, (error, info) => {
+            if (error) reject(error);
+            else resolve(info);
+          });
         });
-      });
-      console.log(`Email sent for task "${task.text}": ${info.response}`);
-    } catch (error) {
-      console.error(`Error sending email for task "${task.text}": ${error.message}`);
+        console.log(`Email sent for task "${task.text}": ${info.response}`);
+      } catch (error) {
+        console.error(`Error sending email for task "${task.text}": ${error.message}`);
+      }
     }
+  } catch (error) {
+    console.error('Error fetching urgent tasks:', error);
   }
 }, 30 * 1000);
 
 // Middleware to verify JWT
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
@@ -93,15 +89,15 @@ app.post('/signup', async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existing.length > 0) {
       return res.status(400).json({ error: 'Email already exists' });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashedPassword });
-    await user.save();
+    const [result] = await pool.query('INSERT INTO users (email, password) VALUES (?, ?)', [email, hashedPassword]);
     res.status(201).json({ message: 'User created' });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -113,17 +109,19 @@ app.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
   try {
-    const user = await User.findOne({ email });
-    if (!user) {
+    const [users] = await pool.query('SELECT id, email, password FROM users WHERE email = ?', [email]);
+    if (users.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    const user = users[0];
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
     res.json({ token });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -131,9 +129,10 @@ app.post('/login', async (req, res) => {
 // GET all tasks for authenticated user
 app.get('/tasks', authenticate, async (req, res) => {
   try {
-    const tasks = await Task.find({ userId: req.userId });
+    const [tasks] = await pool.query('SELECT id AS _id, text, urgent, completed, userId FROM tasks WHERE userId = ?', [req.userId]);
     res.json(tasks);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -145,15 +144,14 @@ app.post('/tasks', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'Task text is required' });
   }
   try {
-    const task = new Task({
-      text,
-      urgent: urgent || false,
-      completed: false,
-      userId: req.userId
-    });
-    await task.save();
+    const [result] = await pool.query(
+      'INSERT INTO tasks (text, urgent, completed, userId) VALUES (?, ?, ?, ?)',
+      [text, urgent || false, false, req.userId]
+    );
+    const task = { _id: result.insertId, text, urgent: urgent || false, completed: false, userId: req.userId };
     res.status(201).json(task);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -162,14 +160,16 @@ app.post('/tasks', authenticate, async (req, res) => {
 app.put('/tasks/:id', authenticate, async (req, res) => {
   const id = req.params.id;
   try {
-    const task = await Task.findOne({ _id: id, userId: req.userId });
-    if (!task) {
+    const [tasks] = await pool.query('SELECT id, completed FROM tasks WHERE id = ? AND userId = ?', [id, req.userId]);
+    if (tasks.length === 0) {
       return res.status(404).json({ error: 'Task not found' });
     }
-    task.completed = !task.completed;
-    await task.save();
+    const completed = !tasks[0].completed;
+    await pool.query('UPDATE tasks SET completed = ? WHERE id = ?', [completed, id]);
+    const task = { _id: id, text: tasks[0].text, urgent: tasks[0].urgent, completed, userId: req.userId };
     res.json(task);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -178,12 +178,13 @@ app.put('/tasks/:id', authenticate, async (req, res) => {
 app.delete('/tasks/:id', authenticate, async (req, res) => {
   const id = req.params.id;
   try {
-    const task = await Task.findOneAndDelete({ _id: id, userId: req.userId });
-    if (!task) {
+    const [result] = await pool.query('DELETE FROM tasks WHERE id = ? AND userId = ?', [id, req.userId]);
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Task not found' });
     }
     res.status(204).send();
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 });
