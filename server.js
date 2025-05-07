@@ -11,6 +11,7 @@ const app = express();
 const port = 3000;
 
 // Middleware
+app.use(express.static('public'));
 app.use(cors());
 app.use(express.json());
 
