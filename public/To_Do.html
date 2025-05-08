@@ -1,95 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Interactive To-Do List with Reminders</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
   <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-    <div id="authSection">
+    <div id="auth">
       <h1 class="text-2xl font-bold text-center mb-4">To-Do List</h1>
-      <div id="signupForm" class="mb-4">
+      <form id="signupForm" class="mb-4">
         <h2 class="text-lg font-semibold mb-2">Sign Up</h2>
-        <input
-          type="email"
-          id="signupEmail"
-          placeholder="Email"
-          class="w-full p-2 mb-2 boreder rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="password"
-          id="signupPassword"
-          placeholder="Password"
-          class="w-full p-2 mb-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          onclick="signup()"
-          class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600"
-        >
+        <input type="email" id="signupEmail" placeholder="Email"
+          class="w-full p-2 mb-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+        <input type="password" id="signupPassword" placeholder="Password"
+          class="w-full p-2 mb-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+        <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600">
           Sign Up
         </button>
-        <p class="text-center mt-2">
-          Already have an account? <a href="#" onclick="showLogin()" class="text-blue-500">Log In</a>
-        </p>
-      </div>
-      <div id="loginForm" class="hidden mb-4">
+      </form>
+      <form id="loginForm" class="mb-4" style="display: none;">
         <h2 class="text-lg font-semibold mb-2">Log In</h2>
-        <input
-          type="email"
-          id="loginEmail"
-          placeholder="Email"
-          class="w-full p-2 mb-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="password"
-          id="loginPassword"
-          placeholder="Password"
-          class="w-full p-2 mb-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          onclick="login()"
-          class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600"
-        >
+        <input type="email" id="loginEmail" placeholder="Email"
+          class="w-full p-2 mb-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+        <input type="password" id="loginPassword" placeholder="Password"
+          class="w-full p-2 mb-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+        <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600">
           Log In
         </button>
-        <p class="text-center mt-2">
-          No account? <a href="#" onclick="showSignup()" class="text-blue-500">Sign Up</a>
-        </p>
-      </div>
+      </form>
+      <p class="text-center">
+        <a href="#" id="toggleAuth" class="text-blue-500">Switch to Login</a>
+      </p>
     </div>
-    <div id="todoSection" class="hidden">
+    <div id="todo" style="display: none;">
       <h1 class="text-2xl font-bold text-center mb-4">To-Do List</h1>
-      <div class="mb-4">
+      <form id="taskForm" class="mb-4">
         <div class="flex">
-          <input
-            type="text"
-            id="taskInput"
-            placeholder="Add a new task"
-            class="flex-1 p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onclick="addTask()"
-            class="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600"
-          >
+          <input type="text" id="taskInput" placeholder="Add a new task"
+            class="flex-1 p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          <button type="submit" class="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600">
             Add
           </button>
         </div>
         <label class="flex items-center mt-2">
-          <input type="checkbox" id="urgentInput" class="mr-2" />
+          <input type="checkbox" id="urgent" class="mr-2" />
           <span>Mark as Urgent</span>
         </label>
-      </div>
+        <input type="time" id="dueTime"
+          class="w-full p-2 mt-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Due Time (e.g., 02:00)" />
+      </form>
       <ul id="taskList" class="space-y-2"></ul>
-      <button
-        onclick="logout()"
-        class="w-full bg-red-500 text-white p-2 mt-4 rounded-lg hover:bg-red-600"
-      >
+      <button onclick="logout()" class="w-full bg-red-500 text-white p-2 mt-4 rounded-lg hover:bg-red-600">
         Log Out
       </button>
     </div>
   </div>
   <script src="App.js"></script>
 </body>
+
 </html>
