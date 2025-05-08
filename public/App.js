@@ -1,57 +1,36 @@
-document.addEventListener('DOMContentLoaded', checkAuth);
+const loginForm = document.getElementById('loginForm');
+const signupForm = document.getElementById('signupForm');
+const taskForm = document.getElementById('taskForm');
+const taskList = document.getElementById('taskList');
+const authDiv = document.getElementById('auth');
+const todoDiv = document.getElementById('todo');
+const toggleAuth = document.getElementById('toggleAuth');
 
-function checkAuth() {
-  const token = localStorage.getItem('token');
-  if (token) {
-    document.getElementById('authSection').classList.add('hidden');
-    document.getElementById('todoSection').classList.remove('hidden');
-    loadTasks();
-  } else {
-    document.getElementById('authSection').classList.remove('hidden');
-    document.getElementById('todoSection').classList.add('hidden');
-    showSignup();
-  }
-}
-
-function showSignup() {
-  document.getElementById('signupForm').classList.remove('hidden');
-  document.getElementById('loginForm').classList.add('hidden');
-}
-
-function showLogin() {
-  document.getElementById('signupForm').classList.add('hidden');
-  document.getElementById('loginForm').classList.remove('hidden');
-}
-
-async function signup() {
-  const email = document.getElementById('signupEmail').value.trim();
-  const password = document.getElementById('signupPassword').value.trim();
-  if (!email || !password) {
-    alert('Please enter email and password');
-    return;
-  }
+signupForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('signupEmail').value;
+  const password = document.getElementById('signupPassword').value;
   try {
     const response = await fetch('http://localhost:3000/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Signup failed');
-    alert('Signup successful! Please log in.');
-    showLogin();
+    if (response.ok) {
+      alert('Signup successful! Please log in.');
+      toggleAuth.click();
+    } else {
+      alert('Signup failed');
+    }
   } catch (error) {
-    alert('Error: ' + error.message);
+    alert('Error during signup');
   }
-}
+});
 
-async function login() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value.trim();
-  if (!email || !password) {
-    alert('Please enter email and password');
-    return;
-  }
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
   try {
     const response = await fetch('http://localhost:3000/login', {
       method: 'POST',
@@ -59,95 +38,82 @@ async function login() {
       body: JSON.stringify({ email, password })
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Login failed');
-    localStorage.setItem('token', data.token);
-    checkAuth();
+    if (response.ok) {
+      localStorage.setItem('token', data.token);
+      authDiv.style.display = 'none';
+      todoDiv.style.display = 'block';
+      loadTasks();
+    } else {
+      alert('Login failed: ' + data.error);
+    }
   } catch (error) {
-    alert('Error: ' + error.message);
+    alert('Error during login');
   }
-}
+});
 
-function logout() {
-  localStorage.removeItem('token');
-  checkAuth();
-}
-
-async function addTask() {
-  const taskInput = document.getElementById('taskInput');
-  const urgentInput = document.getElementById('urgentInput');
-  const text = taskInput.value.trim();
-  if (text === '') return;
+taskForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = document.getElementById('taskInput').value;
+  const urgent = document.getElementById('urgent').checked;
   try {
-    const response = await fetch('http://localhost:3000/tasks', {
+    await fetch('http://localhost:3000/tasks', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
-      body: JSON.stringify({ text, urgent: urgentInput.checked })
+      body: JSON.stringify({ text, urgent })
     });
-    if (!response.ok) throw new Error('Failed to add task');
-    const newTask = await response.json();
-    renderTask(newTask);
-    taskInput.value = '';
-    urgentInput.checked = false;
+    taskForm.reset();
+    loadTasks();
   } catch (error) {
-    alert('Error: ' + error.message);
+    alert('Error adding task');
   }
-}
-
-function renderTask(task) {
-  const taskList = document.getElementById('taskList');
-  const li = document.createElement('li');
-  li.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg';
-  li.dataset.id = task._id;
-  li.innerHTML = `
-    <div class="flex items-center">
-      <input
-        type="checkbox"
-        ${task.completed ? 'checked' : ''}
-        onchange="toggleTask('${task._id}')"
-        class="mr-2"
-      />
-      <span class="${task.completed ? 'line-through text-gray-500' : ''} ${task.urgent ? 'text-red-600' : ''}">
-        ${task.text}
-      </span>
-    </div>
-    <button
-      onclick="deleteTask('${task._id}')"
-      class="text-red-500 hover:text-red-700"
-    >
-      Delete
-    </button>
-  `;
-  taskList.appendChild(li);
-}
+});
 
 async function loadTasks() {
   try {
     const response = await fetch('http://localhost:3000/tasks', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
     });
-    if (!response.ok) throw new Error('Failed to fetch tasks');
     const tasks = await response.json();
-    const taskList = document.getElementById('taskList');
     taskList.innerHTML = '';
-    tasks.forEach(task => renderTask(task));
+    tasks.forEach(task => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id}, ${!task.completed})">
+        <span style="${task.completed ? 'text-decoration: line-through;' : ''} ${task.urgent ? 'color: red;' : ''}">
+          ${task.text}
+        </span>
+        <button onclick="deleteTask(${task.id})">Delete</button>
+      `;
+      taskList.appendChild(li);
+    });
   } catch (error) {
-    alert('Error: ' + error.message);
+    alert('Error loading tasks');
   }
 }
 
-async function toggleTask(id) {
+async function toggleTask(id, completed) {
   try {
     const response = await fetch(`http://localhost:3000/tasks/${id}`, {
       method: 'PUT',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ completed })
     });
-    if (!response.ok) throw new Error('Failed to toggle task');
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Toggle failed: ${errorData.error}`);
+    }
     loadTasks();
   } catch (error) {
-    alert('Error: ' + error.message);
+    console.error('Error toggling task:', error);
+    alert('Failed to toggle task: ' + error.message);
   }
 }
 
@@ -155,11 +121,23 @@ async function deleteTask(id) {
   try {
     const response = await fetch(`http://localhost:3000/tasks/${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
     });
-    if (!response.ok) throw new Error('Failed to delete task');
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Delete failed: ${errorData.error}`);
+    }
     loadTasks();
   } catch (error) {
-    alert('Error: ' + error.message);
+    console.error('Error deleting task:', error);
+    alert('Failed to delete task: ' + error.message);
   }
 }
+
+toggleAuth.addEventListener('click', () => {
+  loginForm.style.display = loginForm.style.display === 'none' ? 'block' : 'none';
+  signupForm.style.display = signupForm.style.display === 'none' ? 'block' : 'none';
+  toggleAuth.textContent = loginForm.style.display === 'none' ? 'Switch to Login' : 'Switch to Signup';
+});
