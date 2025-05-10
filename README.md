@@ -24,8 +24,8 @@ This is a full-stack To-Do list application that allows users to manage tasks wi
 
 ## Screenshots
 
-![Login Page](https://github.com/rahul-raval-2912/To-Do_List/raw/main/screenshots/login-screenshot.png.jpeg)
-![Login Page](https://github.com/rahul-raval-2912/To-Do_List/raw/main/screenshots/tasklist-screenshot.png.jpeg)
-![Login Page](https://github.com/rahul-raval-2912/To-Do_List/raw/main/screenshots/login-screenshot.png.jpeg)
+![Login Page](https://github.com/Rahul-Raval-2912/To-Do-list/blob/main/login-screenshot.png.jpeg)
+![Login Page](https://github.com/Rahul-Raval-2912/To-Do-list/blob/main/tasklist-screenshot.png.jpeg)
+![email Page](https://github.com/Rahul-Raval-2912/To-Do-list/blob/main/reminder-screenshot.png.jpeg)
 
 
