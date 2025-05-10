@@ -26,5 +26,5 @@ This is a full-stack To-Do list application that allows users to manage tasks wi
 
 *Add your screenshots here by uploading the image files to the repository root and pushing to GitHub. The images will appear below.*
 
-*Instructions*: Take screenshots of the app (e.g., login page, task list, email reminder or urgent task UI), save them as `login-screenshot.png`, `tasklist-screenshot.png`, and `reminder-screenshot.png`, and run:
+*Instructions*: Take screenshots of the app (e.g., login page, task list, email reminder or urgent task UI), save them as `login-screenshot.png.jpeg`, `tasklist-screenshot.png.jpeg`, and `reminder-screenshot.png.jpeg`, and run:
 
